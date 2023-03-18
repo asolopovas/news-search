@@ -85,7 +85,8 @@ args_list = [
     {"name": "--clear-cache", "action": "store_true", "default": False,
      "help": "Clear search cache"},
     {"name": "-l", "dest": "lang", "type": str, "default": "en",
-     "help": "Select language to search in"}
+     "help": "Select language to search in"},
+    {"name": "--debug", "action": "store_true", "default": False, "help": "Debug mode"},
 ]
 
 if __name__ == "__main__":
@@ -123,6 +124,6 @@ if __name__ == "__main__":
         data = headings + processNews(newsRawData, args.lang)
 
         makeExcelFile(data, os.path.join(
-            dir_exec, f"results - {args.query} - {suffix}.xlsx"))
+            dir_exec, f"results - {args.query} - {suffix}.xlsx"), args.debug)
     else:
         print("No results found")
