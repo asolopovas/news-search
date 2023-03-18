@@ -1,7 +1,5 @@
 import datetime
-
 import hashlib
-import inspect
 import pickle
 import shutil
 import sys
@@ -11,6 +9,9 @@ import pandas as pd
 import requests
 import os
 import tempfile
+
+from charset_normalizer import from_bytes
+from htmldate import find_date
 from dateutil.parser import parse
 from urllib.parse import parse_qs, unquote, urlencode, urlparse, urlunparse
 from deep_translator import GoogleTranslator
@@ -21,6 +22,8 @@ dir_tmp = tempfile.gettempdir()
 dir_exec = os.getcwd()
 # create cache dir in tmp
 dir_cache = os.path.join(dir_tmp, "google_news_cache")
+if not os.path.exists(dir_cache):
+    os.mkdir(dir_cache)
 
 
 def downloadArticle(url):
@@ -28,7 +31,26 @@ def downloadArticle(url):
         article = Article(url)
         article.download()
         article.parse()
-        return article
+        return {
+            "title": article.title,
+            "text": article.text,
+            "publish_date": article.publish_date,
+            "authors": article.authors,
+            "tob_image": article.top_image,
+            "src_url": article.source_url,
+            "keywords": article.keywords,
+            "meta_keywords": article.meta_keywords,
+            "tags": article.tags,
+            "meta_description": article.meta_description,
+            "meta_lang": article.meta_lang,
+            "summary": article.summary,
+            "html": article.html,
+            "article_html": article.article_html,
+            "canonical_link": article.canonical_link,
+            "images": article.images,
+            "movies": article.movies,
+            "top_image": article.top_image,
+        }
     except:
         return None
 
@@ -54,16 +76,21 @@ def cleanStr(s):
 
 
 def cacheStr(key, cb):
-    if not os.path.exists(dir_cache):
-        os.mkdir(dir_cache)
+
     keyPath = os.path.join(dir_cache, key)
     if os.path.exists(keyPath):
-        return open(keyPath, "r", encoding="utf-8").read()
+        try:
+            return open(keyPath, "r", encoding="utf-8").read()
+        except Exception as error:
+            print(f"An error occurred: {error}")
+            print(f"cachStr fn reading {keyPath} {cb()}")
 
     data = cb()
-    if data is not None:
-        with open(keyPath, "wt", encoding="utf-8") as file:
-            file.write(data)
+    if data is None:
+        return None
+
+    with open(keyPath, "wt", encoding="utf-8") as file:
+        file.write(data)
     return data
 
 
@@ -72,7 +99,6 @@ def cacheObject(key, cb):
         os.mkdir(dir_cache)
     keyPath = os.path.join(dir_cache, key)
     if os.path.exists(keyPath):
-        print("Loading news results from cache...")
         return pickleDeserialize(keyPath)
     data = cb()
     if data is not None:
@@ -149,7 +175,7 @@ def getFinalUrl(url):
         if response.history:
             return response.url
     except:
-        return None
+        return url
 
 
 def translate(text, source, target="en"):
@@ -177,6 +203,16 @@ def translateUrl(url, lang):
         "-", "--").replace(".", "-") + ".translate.goog"
     url_parts[4] = urlencode(url_query)
     return urlunparse(url_parts)
+
+
+def getDate(url):
+    try:
+        date = find_date(url)
+        results = from_bytes(date.encode('utf-8'))
+        best_guess = results.best()
+        return str(best_guess)
+    except:
+        None
 
 
 def dateFormat(date):

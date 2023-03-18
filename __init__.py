@@ -4,9 +4,9 @@ import os
 import inspect
 import sys
 
-from htmldate import find_date
+from urllib.parse import unquote
 from lib.google_news import GoogleNews
-from lib.helpers import cacheObject, cacheStr, cleanStr, clearCache, encodeForExcelLink, getFinalUrl, getHash, makeExcelFile, parseDate, translate, translateUrl, urlToLink, getArticle
+from lib.helpers import cacheObject, cacheStr, cleanStr, clearCache, encodeForExcelLink, getFinalUrl, getHash, makeExcelFile, parseDate, translate, translateUrl, urlToLink, getArticle, getDate
 
 
 dir_exec = os.getcwd()
@@ -25,35 +25,52 @@ class CustomArgumentParser(argparse.ArgumentParser):
 def processNews(results, lang="en"):
     print("Processing Results...")
     data = []
-    idx = 1
+    idx = 0
     if not results is None:
         for result in results:
             title = result['title']
-            link = cacheStr(getHash(result['link']),
-                            lambda: getFinalUrl(result['link']))
-            article = getArticle(link)
-            if article is None:
-                date = ""
-            else:
-                date = article.publish_date
+            date = result['datetime']
+            link = result['link']
+            resultHash = getHash(''.join([title, link]))
 
-            if isinstance(date, datetime.date):
-                date = date.strftime("%Y-%m-%d %H:%M:%S")
+            link = cacheStr(getHash(resultHash.join('link')),
+                            lambda: getFinalUrl(unquote(link)))
 
             if lang != "en":
-                title = cacheStr(getHash(cleanStr(title)),
-                                 lambda: translate(title, lang))
-                link = translateUrl(link, lang)
-            idx = idx + 1
-            nr = str(idx).zfill(4)
-            print(
-                f"{nr} --------------------------- \n Processing: {title} \n Date: {date}")
-            data.append([date, urlToLink(link,  encodeForExcelLink(title))])
+                title = cacheStr(
+                    getHash(getHash(resultHash.join('title'))), lambda: translate(cleanStr(title), lang))
+
+            if date is None:
+                article = getArticle(link)
+                if article is not None and article['publish_date'] is not None:
+                    date = article['publish_date']
+                    date = date.strftime("%Y-%m-%d %H:%M:%S")
+                else:
+                    date = cacheStr(
+                        getHash(resultHash.join('date')), lambda: getDate(link))
+
+            print(date)
+
+            # if article['publish_date']:
+            #     date = article['publish_date'].strftime("%Y-%m-%d %H:%M:%S")
+
+            # if date == "":
+            #     date = cacheStr(getHash(link), lambda: getDate(link))
+
+            # if lang != "en":
+            #     title = cacheStr(getHash(cleanStr(title)),
+            #                      lambda: translate(title, lang))
+            #     link = translateUrl(link, lang)
+            # idx = idx + 1
+            # nr = str(idx).zfill(3)
+            # print(
+            #     f"{nr} --------------------------- \n Processing: {title} \n Date: {date}")
+            # data.append([date, urlToLink(link,  encodeForExcelLink(title))])
 
         return data
 
 
-def searchNews(query, start_date, end_date, lang, encode="utf-8"):
+def getNews(query, start_date, end_date, lang, encode="utf-8"):
     print("Searching for query: \"" + query + "\" from " +
           start_date + " to " + end_date + " in " + lang)
     cacheKey = getHash(''.join([query, start_date, end_date, lang, encode]))
@@ -62,7 +79,7 @@ def searchNews(query, start_date, end_date, lang, encode="utf-8"):
     googlenews.set_time_range(start_date, end_date)
     googlenews.set_encode(encode)
     googlenews.get_news(query)
-    return cacheObject(cacheKey,lambda: googlenews.results())
+    return cacheObject(cacheKey, lambda: googlenews.results())
 
 
 yesterday = (datetime.datetime.now() -
@@ -109,9 +126,7 @@ if __name__ == "__main__":
     if not startDate or not endDate:
         print("Invalid date format: please use something like 01/01/2020 or 01-01-2020")
         exit()
-
-    newsRawData = searchNews(args.query, startDate, endDate, args.lang)
-    print(newsRawData)
+    newsRawData = getNews(args.query, startDate, endDate, args.lang)
 
     headings = [["Date", "Title"]]
     if newsRawData is not None:

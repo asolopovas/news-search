@@ -6,3 +6,4 @@ numpy==1.24.2
 pendulum==2.1.2
 openpyxl==3.0.9
 newspaper3k==0.2.8
+charset_normalizer==3.1.0
