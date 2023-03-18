@@ -1,0 +1,6 @@
+output/*
+.cache/*
+lib/__pycache__/*
+!.cache/.gitkeep
+*.xlsx
+*.csv
