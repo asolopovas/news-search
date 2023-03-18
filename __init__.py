@@ -33,12 +33,13 @@ def processNews(results, lang="en"):
             link = result['link']
             resultHash = getHash(''.join([title, link]))
 
-            link = cacheStr(getHash(resultHash.join('link')),
-                            lambda: getFinalUrl(unquote(link)))
-
             if lang != "en":
-                title = cacheStr(
-                    getHash(getHash(resultHash.join('title'))), lambda: translate(cleanStr(title), lang))
+                titleHash = getHash(resultHash.join('title'))
+                title = cacheStr(getHash(titleHash),
+                                 lambda: cleanStr(translate(title, lang)))
+
+            linkHash = getHash(resultHash.join('link'))
+            link = cacheStr(linkHash, lambda: getFinalUrl(unquote(link)))
 
             if date is None:
                 article = getArticle(link)
@@ -49,23 +50,12 @@ def processNews(results, lang="en"):
                     date = cacheStr(
                         getHash(resultHash.join('date')), lambda: getDate(link))
 
-            print(date)
-
-            # if article['publish_date']:
-            #     date = article['publish_date'].strftime("%Y-%m-%d %H:%M:%S")
-
-            # if date == "":
-            #     date = cacheStr(getHash(link), lambda: getDate(link))
-
-            # if lang != "en":
-            #     title = cacheStr(getHash(cleanStr(title)),
-            #                      lambda: translate(title, lang))
-            #     link = translateUrl(link, lang)
-            # idx = idx + 1
-            # nr = str(idx).zfill(3)
-            # print(
-            #     f"{nr} --------------------------- \n Processing: {title} \n Date: {date}")
-            # data.append([date, urlToLink(link,  encodeForExcelLink(title))])
+            link = translateUrl(link, lang)
+            idx = idx + 1
+            nr = str(idx).zfill(3)
+            print(
+                f"{nr} --------------------------- \n Processing: {title} \n Date: {date}")
+            data.append([date, urlToLink(link,  encodeForExcelLink(title))])
 
         return data
 
